@@ -11,7 +11,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
       <div className="flex flex-col items-center text-center">
 
         {/* Logo */}
-        <div className="w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
+        <div className="w-20 h-20 bg-linear-to-br from-gray-100 to-gray-200 rounded-2xl flex items-center justify-center mb-4 shadow-sm">
           <span className="text-5xl">{company.logo}</span>
         </div>
 
@@ -32,7 +32,7 @@ export default function CompanyCard({ company }: CompanyCardProps) {
         </div>
 
         {/* Tagline */}
-        <p className="text-gray-600 text-sm leading-relaxed mb-6 min-h-[60px]">
+        <p className="text-gray-600 text-sm leading-relaxed mb-6 min-h-15">
           {company.tagline}
         </p>
 

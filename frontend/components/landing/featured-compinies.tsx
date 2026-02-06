@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { FEATURED_COMPANIES } from "@/constants/featured-companies";
-import CompanyCard from "../companies/company-card";
+import CompanyCard from "../company/company-card";
 
 export default function FeaturedCompaniesCarousel() {
   const carouselRef = useRef<HTMLDivElement | null>(null);
