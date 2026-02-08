@@ -28,7 +28,7 @@ export default function Navbar() {
               Jobs
             </Link>
             <Link
-              href="#companies"
+              href="/companies"
               className="text-slate-600 font-semibold hover:text-slate-900 transition-colors"
             >
               Companies
