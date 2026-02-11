@@ -1,8 +1,8 @@
 "use client";
 
 import JobCard from "@/components/jobs/job-card";
+import JobFilters from "@/components/jobs/job-filters";
 import { useState } from "react";
-import JobFilters from "@/components/company/jobs/job-filters";
 
 export default function CompanyJobs({ jobs }: { jobs: any[] }) {
   const [filters, setFilters] = useState({

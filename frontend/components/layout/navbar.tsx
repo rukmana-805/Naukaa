@@ -22,7 +22,7 @@ export default function Navbar() {
           {/* Nav Links */}
           <div className="hidden md:flex items-center space-x-8">
             <Link
-              href="#jobs"
+              href="/jobs"
               className="text-slate-600 font-semibold hover:text-slate-900 transition-colors"
             >
               Jobs
