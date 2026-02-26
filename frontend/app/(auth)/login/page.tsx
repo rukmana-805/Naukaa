@@ -3,14 +3,21 @@
 import React, { useState } from 'react';
 import { Check, Eye, EyeOff, User, Phone, Lock } from 'lucide-react';
 import Input from '@/components/ui/input';
+import { login } from '@/lib/auth';
+import { useRouter } from 'next/navigation';
 
 const Login = () => {
+
+  const router = useRouter();
+
   const [loginMethod, setLoginMethod] = useState<'password' | 'otp'>('password');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [otp, setOtp] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   const points = [
     'One click apply using naukaa profile.',
@@ -36,11 +43,18 @@ const Login = () => {
     alert(`${provider} login clicked`);
   };
 
+  const handleLoginUser = () => {
+    login();
+    setIsLoggedIn(true);
+    router.push("/profile");
+    router.refresh();
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
 
       {/* LEFT SIDE */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-blue-600 to-blue-800 ml-20 p-10 my-1 flex-col justify-center items-center text-white">
+      <div className="hidden lg:flex lg:w-1/2 bg-linear-to-br from-blue-600 to-blue-800 ml-20 p-10 my-1 flex-col justify-center items-center text-white">
         <h2 className="text-4xl font-bold mb-4 text-center">New to Naukaa?</h2>
 
         <div className="max-w-md mb-4 space-y-3 text-lg leading-relaxed mx-auto">
@@ -126,7 +140,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-[42px] text-gray-400"
+                  className="absolute right-4 top-10.5 text-gray-400"
                 >
                   {showPassword ? <EyeOff /> : <Eye />}
                 </button>
@@ -149,7 +163,7 @@ const Login = () => {
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  className="h-[52px] px-4 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 whitespace-nowrap"
+                  className="h-13 px-4 bg-gray-200 text-gray-700 rounded-xl hover:bg-gray-300 whitespace-nowrap"
                 >
                   {otpSent ? 'Resend' : 'Send OTP'}
                 </button>
@@ -169,6 +183,7 @@ const Login = () => {
             <button
               type="submit"
               className="w-full bg-blue-600 text-white py-3 rounded-xl hover:bg-blue-700 transition font-semibold"
+              onClick={handleLoginUser}
             >
               Login
             </button>

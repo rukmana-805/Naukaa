@@ -2,8 +2,25 @@
 
 import Link from "next/link";
 import { Briefcase } from "lucide-react";
+import { useEffect, useState } from "react";
+import { getAuth, logout } from "@/lib/auth";
+import { useRouter } from "next/navigation";
 
 export default function Navbar() {
+
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    setIsLoggedIn(getAuth());
+  }, []);
+
+  const handleLogOutUser = () => {
+    logout();
+    setIsLoggedIn(false);
+    router.push("/login");
+  }
+
   return (
     <nav className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -43,12 +60,21 @@ export default function Navbar() {
 
           {/* Auth Buttons */}
           <div className="flex items-center space-x-4">
-            <Link
+            {isLoggedIn ? (<button
+              // href=""
+              className="text-blue-600 font-semibold hover:text-blue-700 transition-colors cursor-pointer"
+              onClick={handleLogOutUser}
+            >
+              Log Out
+            </button>) : (<Link
               href="/login"
               className="text-blue-600 font-semibold hover:text-blue-700 transition-colors"
             >
               Log In
             </Link>
+          
+          )
+            }
 
             <Link
               href="/register"
