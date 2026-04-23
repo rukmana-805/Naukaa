@@ -3,7 +3,7 @@ import asyncHandler from "../utils/asyncHandler.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import cloudinary from "../config/cloudinary.js";
-
+import fs from "fs";
 
 const uploadResume = asyncHandler(async (req, res) => {
 
@@ -11,18 +11,42 @@ const uploadResume = asyncHandler(async (req, res) => {
     throw new ApiError(400, "No file uploaded");
   }
 
+  const user = await UserModel.findById(req.user._id);
+
+  if (!user) {
+    throw new ApiError(404, "User not found");
+  }
+
+  // DELETE OLD RESUME
+  if (
+    user.resume &&
+    typeof user.resume === "object" &&
+    user.resume.public_id
+  ) {
+    await cloudinary.uploader.destroy(user.resume.public_id, {
+      resource_type: "raw"
+    });
+  }
+
+  // Upload new resume
   const uploadedFile = await cloudinary.uploader.upload(req.file.path, {
     resource_type: "raw",
     folder: "naukaa/resumes"
   });
 
-  const user = await UserModel.findById(req.user._id);
+  // Save new resume
+  user.resume = {
+    url: uploadedFile.secure_url,
+    public_id: uploadedFile.public_id
+  };
 
-  user.resume = uploadedFile.secure_url;
   await user.save();
 
+  // Delete local file
+  fs.unlinkSync(req.file.path);
+
   res.status(200).json(
-    new ApiResponse(200, user.resume, "Resume uploaded successfully")
+    new ApiResponse(200, user.resume.url, "Resume uploaded successfully")
   );
 });
 

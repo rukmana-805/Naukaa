@@ -3,7 +3,6 @@ import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
-    // BASIC AUTH
     fullName: {
       type: String,
       required: true,
@@ -15,7 +14,8 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
       lowercase: true,
-      trim: true
+      trim: true,
+      index: true
     },
 
     password: {
@@ -25,9 +25,7 @@ const userSchema = new mongoose.Schema(
       select: false
     },
 
-    phone: {
-      type: String
-    },
+    phone: String,
 
     role: {
       type: String,
@@ -35,7 +33,7 @@ const userSchema = new mongoose.Schema(
       default: "user"
     },
 
-    // PERSONAL DETAILS
+    // PROFILE
     personalDetails: {
       dob: Date,
       gender: {
@@ -43,7 +41,6 @@ const userSchema = new mongoose.Schema(
         enum: ["male", "female", "other"]
       },
       hometown: String,
-
       address: {
         permanentAddress: String,
         city: String,
@@ -52,21 +49,19 @@ const userSchema = new mongoose.Schema(
       }
     },
 
-    // PROFESSIONAL STATUS
     professionalStatus: {
       type: String,
       enum: ["fresher", "experienced"]
     },
 
     experienceDetails: {
-      totalExperience: Number, // in years
+      totalExperience: Number,
       currentCompany: String,
       currentSalary: Number,
       expectedSalary: Number,
       noticePeriod: String
     },
 
-    // WORK EXPERIENCE (ARRAY)
     workExperience: [
       {
         companyName: String,
@@ -77,7 +72,6 @@ const userSchema = new mongoose.Schema(
       }
     ],
 
-    // EDUCATION
     education: [
       {
         degree: String,
@@ -89,36 +83,29 @@ const userSchema = new mongoose.Schema(
       }
     ],
 
-    // SKILLS
     skills: [String],
 
-    // CAREER PREFERENCES
     careerPreferences: {
       desiredJobRole: String,
       preferredIndustry: String,
       department: String,
       expectedSalary: Number,
-
       employmentType: {
         type: String,
         enum: ["full-time", "part-time", "internship", "contract"]
       },
-
       preferredShift: {
         type: String,
         enum: ["day", "night", "flexible"]
       },
-
       workMode: {
         type: String,
         enum: ["remote", "hybrid", "onsite"]
       }
     },
 
-    // PREFERRED LOCATIONS
     preferredLocations: [String],
 
-    // LANGUAGES
     languages: [
       {
         name: String,
@@ -128,33 +115,68 @@ const userSchema = new mongoose.Schema(
       }
     ],
 
-    // PROFILE
     profileSummary: String,
 
-    resume: String, // cloudinary URL
-
-    refreshToken: {
-      type: String
+    resume: {
+      url: String,
+      public_id: String
     },
 
-    profilePic: String
+    profilePic: {
+      url: String,
+      public_id: String
+    },
+
+    // SYSTEM
+    refreshToken: String,
+    isProfileComplete: {
+      type: Boolean,
+      default: false
+    },
+    isVerified: {
+      type: Boolean,
+      default: false
+    },
+    lastLogin: Date,
+
+    // FEATURES
+    savedJobs: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Job"
+      }
+    ]
   },
-  {
-    timestamps: true
-  }
+  { timestamps: true }
 );
 
-
+// PASSWORD HASH
 userSchema.pre("save", async function () {
   if (!this.isModified("password")) return;
-
   this.password = await bcrypt.hash(this.password, 10);
 });
-
 
 userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+
+// Castading Handle
+
+// Recruiter delete → jobs delete
+// this.getFilter() -> gives id of the user who is being deleted and this function says that when a
+// user is being deleted, find all the jobs where postedBy is that user's id and delete those jobs as well.
+userSchema.pre("findOneAndDelete", async function (next) {
+
+  const user = await this.model.findOne(this.getFilter());
+
+  if (user.role === "recruiter") {
+    await mongoose.model("Job").deleteMany({
+      postedBy: user._id
+    });
+  }
+
+  next();
+});
 
 export default mongoose.model("User", userSchema);
