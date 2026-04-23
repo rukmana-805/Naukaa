@@ -85,6 +85,17 @@ const jobSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+jobSchema.pre("findOneAndDelete", async function () {
+
+  const job = await this.model.findOne(this.getFilter());
+
+  await mongoose.model("Application").deleteMany({
+    job: job._id
+  });
+
+  // next();
+});
+
 export default mongoose.model("Job", jobSchema);
 
 // Example questions array for a job posting:

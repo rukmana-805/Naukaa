@@ -166,17 +166,24 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
 // Recruiter delete → jobs delete
 // this.getFilter() -> gives id of the user who is being deleted and this function says that when a
 // user is being deleted, find all the jobs where postedBy is that user's id and delete those jobs as well.
-userSchema.pre("findOneAndDelete", async function (next) {
+userSchema.pre("findOneAndDelete", async function () {
 
   const user = await this.model.findOne(this.getFilter());
 
+  if (!user) return;
+
+  // delete jobs if recruiter
   if (user.role === "recruiter") {
     await mongoose.model("Job").deleteMany({
       postedBy: user._id
     });
   }
 
-  next();
+  // delete applications
+  await mongoose.model("Application").deleteMany({
+    applicant: user._id
+  });
+
 });
 
 export default mongoose.model("User", userSchema);

@@ -7,6 +7,7 @@ import helmet from "helmet";
 import errorHandler from "./middlewares/error.middleware.js";
 import authRoutes from "./routes/auth.routes.js";
 import userRoutes from "./routes/user.routes.js";
+import organizationRoutes from "./routes/organization.routes.js";
 
 const app = express();
 
@@ -30,6 +31,7 @@ app.use(morgan("dev"));
 // Manual Routers
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
+app.use("/api/organizations", organizationRoutes);
 
 // Test route
 app.get("/", (req, res) => {

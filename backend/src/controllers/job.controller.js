@@ -4,7 +4,7 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 
-export const createJob = asyncHandler(async (req, res) => {
+const createJob = asyncHandler(async (req, res) => {
 
   const {
     title,
@@ -51,7 +51,7 @@ export const createJob = asyncHandler(async (req, res) => {
   );
 });
 
-export const updateJob = asyncHandler(async (req, res) => {
+const updateJob = asyncHandler(async (req, res) => {
 
   const job = await Job.findById(req.params.id);
 
@@ -73,7 +73,7 @@ export const updateJob = asyncHandler(async (req, res) => {
   );
 });
 
-export const deleteJob = asyncHandler(async (req, res) => {
+const deleteJob = asyncHandler(async (req, res) => {
 
   const job = await Job.findById(req.params.id);
 
@@ -92,7 +92,7 @@ export const deleteJob = asyncHandler(async (req, res) => {
   );
 });
 
-export const getJobs = asyncHandler(async (req, res) => {
+const getJobs = asyncHandler(async (req, res) => {
 
   const jobs = await Job.find({ status: "open" })
     .populate("company", "name logo")
@@ -103,3 +103,9 @@ export const getJobs = asyncHandler(async (req, res) => {
   );
 });
 
+export {
+  createJob,
+  updateJob,
+  deleteJob,
+  getJobs
+};
