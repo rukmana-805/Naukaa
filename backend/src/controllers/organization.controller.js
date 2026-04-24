@@ -110,7 +110,7 @@ export const updateOrganization = asyncHandler(async (req, res) => {
     "culture", "perks"
   ];
 
-  // SAFE UPDATE
+  // SAFE UPDATE - Update only allowed fields
   Object.keys(req.body).forEach(key => {
     if (allowedFields.includes(key)) {
       org[key] = req.body[key];
@@ -234,11 +234,13 @@ export const followOrganization = asyncHandler(async (req, res) => {
 
   const org = await Organization.findById(req.params.id);
 
-  if (!org) throw new ApiError(404, "Not found");
+  if (!org) throw new ApiError(404, "Organization not found");
 
   if (!org.followers.includes(req.user._id)) {
     org.followers.push(req.user._id);
     await org.save();
+  }else{
+    throw new ApiError(400, "Already following");
   }
 
   res.status(200).json(
@@ -252,8 +254,9 @@ export const unfollowOrganization = asyncHandler(async (req, res) => {
 
   const org = await Organization.findById(req.params.id);
 
-  if (!org) throw new ApiError(404, "Not found");
+  if (!org) throw new ApiError(404, "Organization not found");
 
+  // return a new array of followers excluding the current user
   org.followers = org.followers.filter(
     id => id.toString() !== req.user._id.toString()
   );
