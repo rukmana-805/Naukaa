@@ -7,7 +7,8 @@ import asyncHandler from "../utils/asyncHandler.js";
 
 const applyToJob = asyncHandler(async (req, res) => {
 
-  const { jobId, answers } = req.body;
+  const { jobId } = req.params;
+  const { answers } = req.body;
 
   // check job
   const job = await Job.findById(jobId).populate("company");
@@ -70,6 +71,13 @@ const applyToJob = asyncHandler(async (req, res) => {
     answers: isEasyApply ? [] : answers,
 
     source: "platform"
+  });
+
+  // increment applications count in job
+  await Job.findByIdAndUpdate(jobId, { 
+    $inc: { 
+      applicationsCount: 1 
+    } 
   });
 
   res.status(201).json(

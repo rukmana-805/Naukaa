@@ -18,7 +18,7 @@ const router = express.Router();
 
 
 // USER ROUTES 
-router.post("/apply", verifyUser, applyToJob);
+router.post("/job/:jobId/apply", verifyUser, applyToJob);
 router.get("/my-applications", verifyUser, getMyApplications);
 router.get("/:id", verifyUser, getApplicationById);
 router.patch("/withdraw/:id", verifyUser, withdrawApplication);
