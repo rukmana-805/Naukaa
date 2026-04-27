@@ -123,6 +123,17 @@ const applicationSchema = new mongoose.Schema(
 );
 
 
+// MUST
+applicationSchema.index({ job: 1 });
+applicationSchema.index({ applicant: 1 });
+
+// IMPORTANT
+applicationSchema.index({ job: 1, status: 1 });
+
+// (performance boost)
+applicationSchema.index({ job: 1, createdAt: -1 });
+
+
 // UNIQUE INDEX (one application per job per user)
 applicationSchema.index(
   { job: 1, applicant: 1 },

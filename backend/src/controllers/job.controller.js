@@ -123,7 +123,7 @@ const deleteJob = asyncHandler(async (req, res) => {
   res.status(200).json(new ApiResponse(200, {}, "Job deleted"));
 });
 
-const getJobs = asyncHandler(async (req, res) => {
+const getOpenJobs = asyncHandler(async (req, res) => {
   const jobs = await Job.find({ status: "open" })
     .populate("company", "name logo")
     .sort({ createdAt: -1 });
@@ -142,8 +142,197 @@ const getJobById = asyncHandler(async (req, res) => {
 });
 
 
+// Job Searching
+const getFilteredJobs = asyncHandler(async (req, res) => {
+
+  // STEP 1: Extract query params
+  const {
+    keyword,
+    location,
+    skills,
+    employmentType,
+    minSalary,
+    maxSalary,
+    experience,
+    page = 1,
+    limit = 10
+  } = req.query;
+
+  // STEP 2: Base query
+  let query = {
+    expiresAt: { $gt: new Date() } // expired jobs remove
+  };
+
+  // STEP 3: TEXT SEARCH (FAST)
+  if (keyword) {
+    query.$text = { $search: keyword };
+  }
+
+  // STEP 4: LOCATION FILTER
+  if (location) {
+    query.location = { $regex: location, $options: "i" };
+  }
+
+  // STEP 5: EMPLOYMENT TYPE
+  if (employmentType) {
+    query.employmentType = employmentType;
+  }
+
+  // STEP 6: SKILLS FILTER
+  if (skills) {
+    const skillsArray = skills.split(",");
+    query.skillsRequired = { $in: skillsArray };
+  }
+
+  // STEP 7: SALARY FILTER
+  if (minSalary || maxSalary) {
+
+    query["salaryRange.min"] = {
+      $gte: Number(minSalary || 0)
+    };
+
+    query["salaryRange.max"] = {
+      $lte: Number(maxSalary || 100000000)
+    };
+
+  }
+
+  
+  // STEP 8: EXPERIENCE FILTER
+  if (experience) {
+
+    query["experienceRequired.min"] = {
+      $lte: Number(experience)
+    };
+
+    query["experienceRequired.max"] = {
+      $gte: Number(experience)
+    };
+
+  }
+
+  
+  // STEP 9: PAGINATION
+  // first 0 skip then 10 skip then 20 skip and so on
+  const skip = (page - 1) * limit;
+  
+  // STEP 10: FETCH + HYBRID RANKING
+  let jobsQuery;
+
+  if (keyword) {
+    // WITH TEXT SEARCH (score included)
+    jobsQuery = Job.find(query, {
+      score: { $meta: "textScore" }
+    }).sort({
+      score: { $meta: "textScore" }, // relevance
+      applicationCount: -1,          // popularity
+      createdAt: -1                  // recency
+    });
+  } else {
+    // WITHOUT KEYWORD (fallback ranking)
+    jobsQuery = Job.find(query).sort({
+      applicationCount: -1,
+      createdAt: -1
+    });
+  }
+
+  const jobs = await jobsQuery
+    .skip(skip)
+    .limit(Number(limit))
+    .populate("company");
+
+  
+  // STEP 11: TOTAL COUNT
+  const total = await Job.countDocuments(query);
+
+  
+  // STEP 12: RESPONSE
+  res.status(200).json(
+    new ApiResponse(200, {
+      jobs,
+      total,
+      page: Number(page),
+      pages: Math.ceil(total / limit)
+    }, "Jobs fetched successfully")
+  );
+
+});
 
 
+// Recommendation Algorithm (Bonus - can be improved a lot with ML)
+const getRecommendedJobs = asyncHandler(async (req, res) => {
+
+  const user = await User.findById(req.user._id);
+
+  if (!user) throw new ApiError(404, "User not found");
+
+  
+  // Build search string
+  const searchParts = [];
+
+  if (user.careerPreferences?.desiredJobRole) {
+    searchParts.push(user.careerPreferences.desiredJobRole);
+  }
+
+  if (user.skills?.length) {
+    searchParts.push(...user.skills);
+  }
+
+  const searchText = searchParts.join(" ");
+
+  
+  // Base query
+  let query = {
+    expiresAt: { $gt: new Date() }
+  };
+
+  if (searchText) {
+    query.$text = { $search: searchText };
+  }
+
+  
+  // Experience filter
+  const experience =
+    user.experienceDetails?.totalExperience || 0;
+
+  query["experienceRequired.min"] = { $lte: experience };
+  query["experienceRequired.max"] = { $gte: experience };
+
+  
+  // Location filter
+  if (user.preferredLocations?.length) {
+    query.location = { $in: user.preferredLocations };
+  }
+
+  
+  // FETCH + HYBRID RANKING
+  let jobsQuery;
+
+  if (searchText) {
+    jobsQuery = Job.find(
+      query,
+      { score: { $meta: "textScore" } }
+    ).sort({
+      score: { $meta: "textScore" }, // relevance
+      applicationCount: -1,          // popularity
+      createdAt: -1                  // recency
+    });
+  } else {
+    jobsQuery = Job.find(query).sort({
+      applicationCount: -1,
+      createdAt: -1
+    });
+  }
+
+  const jobs = await jobsQuery
+    .limit(20)
+    .populate("company");
+
+  res.status(200).json(
+    new ApiResponse(200, jobs, "Recommended jobs fetched")
+  );
+
+});
 
 
 // Questions Controllers
@@ -265,9 +454,11 @@ export {
   createJob,
   updateJob,
   deleteJob,
-  getJobs,
+  getOpenJobs,
+  getFilteredJobs,
   getJobById,
   createQuestion,
   updateQuestion,
-  deleteQuestion
+  deleteQuestion,
+  getRecommendedJobs
 };

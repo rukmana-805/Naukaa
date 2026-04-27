@@ -57,6 +57,7 @@ const userSchema = new mongoose.Schema(
     experienceDetails: {
       totalExperience: Number,
       currentCompany: String,
+      currentRole: String, // added later
       currentSalary: Number,
       expectedSalary: Number,
       noticePeriod: String

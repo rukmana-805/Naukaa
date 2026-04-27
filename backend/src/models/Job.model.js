@@ -96,6 +96,31 @@ jobSchema.pre("findOneAndDelete", async function () {
   // next();
 });
 
+// Indexing for efficient searching and filtering
+// TEXT INDEX (search ke liye)
+jobSchema.index(
+  {
+    title: "text",
+    description: "text",
+    skillsRequired: "text"
+  },
+  {
+    weights: {
+      title: 5,
+      skillsRequired: 3,
+      description: 1
+    }
+  }
+);
+
+// FILTER INDEXES : 1 - sorted increasing order, -1 - sorted decreasing order
+jobSchema.index({ location: 1 });
+jobSchema.index({ skillsRequired: 1 });
+jobSchema.index({ employmentType: 1 });
+jobSchema.index({ expiresAt: 1 });
+jobSchema.index({ applicationCount: -1 });
+jobSchema.index({ createdAt: -1 });
+
 export default mongoose.model("Job", jobSchema);
 
 // Example questions array for a job posting:
