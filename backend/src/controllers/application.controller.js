@@ -1,6 +1,6 @@
 import Application from "../models/Application.model.js";
 import Job from "../models/Job.model.js";
-import User from "../models/User.model.js";
+import UserModel from "../models/User.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
@@ -26,7 +26,7 @@ const applyToJob = asyncHandler(async (req, res) => {
   }
 
   // get user
-  const user = await User.findById(req.user._id);
+  const user = await UserModel.findById(req.user._id);
 
   if (!user) throw new ApiError(404, "User not found");
 

@@ -4,6 +4,7 @@ import "./globals.css";
 import { inter } from "@/styles/fonts";
 import Navbar from "@/components/layout/navbar";
 import Footer from "@/components/layout/footer";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,6 +35,10 @@ export default function RootLayout({
         {children}
         <Footer />
       </body>
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+      />
     </html>
   );
 }

@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema(
     fullName: {
       type: String,
       required: true,
-      trim: true
+      trim: true,
     },
 
     email: {
@@ -15,14 +15,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
-      index: true
+      index: true,
     },
 
     password: {
       type: String,
       required: true,
       minlength: 6,
-      select: false
+      select: false,
     },
 
     phone: String,
@@ -30,7 +30,7 @@ const userSchema = new mongoose.Schema(
     role: {
       type: String,
       enum: ["user", "recruiter", "admin"],
-      default: "user"
+      default: "user",
     },
 
     // PROFILE
@@ -38,20 +38,20 @@ const userSchema = new mongoose.Schema(
       dob: Date,
       gender: {
         type: String,
-        enum: ["male", "female", "other"]
+        enum: ["male", "female", "other"],
       },
       hometown: String,
       address: {
         permanentAddress: String,
         city: String,
         state: String,
-        pincode: String
-      }
+        pincode: String,
+      },
     },
 
     professionalStatus: {
       type: String,
-      enum: ["fresher", "experienced"]
+      enum: ["fresher", "experienced"],
     },
 
     experienceDetails: {
@@ -60,7 +60,7 @@ const userSchema = new mongoose.Schema(
       currentRole: String, // added later
       currentSalary: Number,
       expectedSalary: Number,
-      noticePeriod: String
+      noticePeriod: String,
     },
 
     workExperience: [
@@ -69,8 +69,8 @@ const userSchema = new mongoose.Schema(
         role: String,
         startDate: Date,
         endDate: Date,
-        description: String
-      }
+        description: String,
+      },
     ],
 
     education: [
@@ -80,8 +80,8 @@ const userSchema = new mongoose.Schema(
         fieldOfStudy: String,
         percentageOrCGPA: String,
         startYear: Number,
-        endYear: Number
-      }
+        endYear: Number,
+      },
     ],
 
     skills: [String],
@@ -93,16 +93,16 @@ const userSchema = new mongoose.Schema(
       expectedSalary: Number,
       employmentType: {
         type: String,
-        enum: ["full-time", "part-time", "internship", "contract"]
+        enum: ["full-time", "part-time", "internship", "contract"],
       },
       preferredShift: {
         type: String,
-        enum: ["day", "night", "flexible"]
+        enum: ["day", "night", "flexible"],
       },
       workMode: {
         type: String,
-        enum: ["remote", "hybrid", "onsite"]
-      }
+        enum: ["remote", "hybrid", "onsite"],
+      },
     },
 
     preferredLocations: [String],
@@ -112,31 +112,31 @@ const userSchema = new mongoose.Schema(
         name: String,
         read: Boolean,
         write: Boolean,
-        speak: Boolean
-      }
+        speak: Boolean,
+      },
     ],
 
     profileSummary: String,
 
     resume: {
       url: String,
-      public_id: String
+      public_id: String,
     },
 
     profilePic: {
       url: String,
-      public_id: String
+      public_id: String,
     },
 
     // SYSTEM
     refreshToken: String,
     isProfileComplete: {
       type: Boolean,
-      default: false
+      default: false,
     },
     isVerified: {
       type: Boolean,
-      default: false
+      default: false,
     },
     lastLogin: Date,
 
@@ -144,11 +144,23 @@ const userSchema = new mongoose.Schema(
     savedJobs: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Job"
-      }
-    ]
+        ref: "Job",
+      },
+    ],
+
+    // For payment integration
+    plan: {
+      type: String,
+      enum: ["free", "paid"],
+      default: "free",
+    },
+
+    subscription: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Subscription",
+    },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 // PASSWORD HASH
@@ -161,14 +173,12 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-
 // Castading Handle
 
 // Recruiter delete → jobs delete
 // this.getFilter() -> gives id of the user who is being deleted and this function says that when a
 // user is being deleted, find all the jobs where postedBy is that user's id and delete those jobs as well.
 userSchema.pre("findOneAndDelete", async function () {
-
   const user = await this.model.findOne(this.getFilter());
 
   if (!user) return;
@@ -176,15 +186,14 @@ userSchema.pre("findOneAndDelete", async function () {
   // delete jobs if recruiter
   if (user.role === "recruiter") {
     await mongoose.model("Job").deleteMany({
-      postedBy: user._id
+      postedBy: user._id,
     });
   }
 
   // delete applications
   await mongoose.model("Application").deleteMany({
-    applicant: user._id
+    applicant: user._id,
   });
-
 });
 
 export default mongoose.model("User", userSchema);

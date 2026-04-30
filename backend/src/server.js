@@ -1,5 +1,9 @@
 import dotenv from "dotenv";
+import { connectRabbitMQ } from "./src/queues/rabbitmq.connection.js";
+
 dotenv.config();
+
+await connectRabbitMQ();
 
 import connectDB from "./config/db.js";
 
