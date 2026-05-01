@@ -4,9 +4,9 @@ import UserModel from "../models/User.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import { sendEmailToQueue } from "../queues/email.producer.js";
 
 const applyToJob = asyncHandler(async (req, res) => {
-
   const { jobId } = req.params;
   const { answers } = req.body;
 
@@ -18,7 +18,7 @@ const applyToJob = asyncHandler(async (req, res) => {
   // prevent duplicate apply
   const alreadyApplied = await Application.findOne({
     job: jobId,
-    applicant: req.user._id
+    applicant: req.user._id,
   });
 
   if (alreadyApplied) {
@@ -45,7 +45,6 @@ const applyToJob = asyncHandler(async (req, res) => {
 
   // CREATE APPLICATION
   const application = await Application.create({
-
     applicant: user._id,
     job: job._id,
     company: job.company._id,
@@ -54,14 +53,14 @@ const applyToJob = asyncHandler(async (req, res) => {
     applicantSnapshot: {
       fullName: user.fullName,
       email: user.email,
-      phone: user.phone
+      phone: user.phone,
     },
 
     jobSnapshot: {
       title: job.title,
       companyName: job.company.name,
       location: job.location,
-      salaryRange: job.salaryRange
+      salaryRange: job.salaryRange,
     },
 
     // RESUME
@@ -70,36 +69,38 @@ const applyToJob = asyncHandler(async (req, res) => {
     // ANSWERS (empty if easy apply)
     answers: isEasyApply ? [] : answers,
 
-    source: "platform"
+    source: "platform",
+  });
+
+  // Push email to queue - RabbitMQ
+  await sendEmailToQueue({
+    email: req.user.email,
   });
 
   // increment applications count in job
-  await Job.findByIdAndUpdate(jobId, { 
-    $inc: { 
-      applicationsCount: 1 
-    } 
+  await Job.findByIdAndUpdate(jobId, {
+    $inc: {
+      applicationsCount: 1,
+    },
   });
 
-  res.status(201).json(
-    new ApiResponse(201, application, "Applied successfully")
-  );
+  res
+    .status(201)
+    .json(new ApiResponse(201, application, "Applied successfully"));
 });
 
 const getMyApplications = asyncHandler(async (req, res) => {
-
   const applications = await Application.find({
     applicant: req.user._id,
-    isWithdrawn: false
-  })
-  .sort({ createdAt: -1 });
+    isWithdrawn: false,
+  }).sort({ createdAt: -1 });
 
-  res.status(200).json(
-    new ApiResponse(200, applications, "Fetched successfully")
-  );
+  res
+    .status(200)
+    .json(new ApiResponse(200, applications, "Fetched successfully"));
 });
 
 const getJobApplications = asyncHandler(async (req, res) => {
-
   const { jobId } = req.params;
 
   const job = await Job.findById(jobId);
@@ -110,34 +111,29 @@ const getJobApplications = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized");
   }
 
-  const applications = await Application.find({ job: jobId })
-    .sort({ createdAt: -1 });
+  const applications = await Application.find({ job: jobId }).sort({
+    createdAt: -1,
+  });
 
-  res.status(200).json(
-    new ApiResponse(200, applications, "Applications fetched")
-  );
+  res
+    .status(200)
+    .json(new ApiResponse(200, applications, "Applications fetched"));
 });
 
 const getApplicationById = asyncHandler(async (req, res) => {
-
   const application = await Application.findById(req.params.id);
 
   if (!application) throw new ApiError(404, "Not found");
 
   // only applicant OR recruiter
-  if (
-    application.applicant.toString() !== req.user._id.toString()
-  ) {
+  if (application.applicant.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not authorized");
   }
 
-  res.status(200).json(
-    new ApiResponse(200, application, "Fetched")
-  );
+  res.status(200).json(new ApiResponse(200, application, "Fetched"));
 });
 
 const updateApplicationStatus = asyncHandler(async (req, res) => {
-
   const { status } = req.body;
 
   const allowedStatus = [
@@ -146,15 +142,14 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
     "shortlisted",
     "interview",
     "rejected",
-    "hired"
+    "hired",
   ];
 
   if (!allowedStatus.includes(status)) {
     throw new ApiError(400, "Invalid status");
   }
 
-  const application = await Application.findById(req.params.id)
-    .populate("job");
+  const application = await Application.findById(req.params.id).populate("job");
 
   if (!application) throw new ApiError(404, "Application not found");
 
@@ -170,18 +165,13 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
 
   await application.save();
 
-  res.status(200).json(
-    new ApiResponse(200, application, "Status updated")
-  );
+  res.status(200).json(new ApiResponse(200, application, "Status updated"));
 });
 
-
 const addNote = asyncHandler(async (req, res) => {
-
   const { notes } = req.body;
 
-  const application = await Application.findById(req.params.id)
-    .populate("job");
+  const application = await Application.findById(req.params.id).populate("job");
 
   if (!application) throw new ApiError(404, "Application not found");
 
@@ -193,18 +183,13 @@ const addNote = asyncHandler(async (req, res) => {
 
   await application.save();
 
-  res.status(200).json(
-    new ApiResponse(200, application, "Note added")
-  );
+  res.status(200).json(new ApiResponse(200, application, "Note added"));
 });
 
-
 const scheduleInterview = asyncHandler(async (req, res) => {
-
   const { scheduledAt, mode, meetingLink } = req.body;
 
-  const application = await Application.findById(req.params.id)
-    .populate("job");
+  const application = await Application.findById(req.params.id).populate("job");
 
   if (!application) throw new ApiError(404, "Not found");
 
@@ -215,7 +200,7 @@ const scheduleInterview = asyncHandler(async (req, res) => {
   application.interview = {
     scheduledAt,
     mode,
-    meetingLink
+    meetingLink,
   };
 
   // auto update status
@@ -224,13 +209,12 @@ const scheduleInterview = asyncHandler(async (req, res) => {
 
   await application.save();
 
-  res.status(200).json(
-    new ApiResponse(200, application, "Interview scheduled")
-  );
+  res
+    .status(200)
+    .json(new ApiResponse(200, application, "Interview scheduled"));
 });
 
 const withdrawApplication = asyncHandler(async (req, res) => {
-
   const application = await Application.findById(req.params.id);
 
   if (!application) throw new ApiError(404, "Not found");
@@ -247,22 +231,17 @@ const withdrawApplication = asyncHandler(async (req, res) => {
 
   await application.save();
 
-  res.status(200).json(
-    new ApiResponse(200, {}, "Application withdrawn")
-  );
+  res.status(200).json(new ApiResponse(200, {}, "Application withdrawn"));
 });
 
 const deleteApplication = asyncHandler(async (req, res) => {
-
   const application = await Application.findById(req.params.id);
 
   if (!application) throw new ApiError(404, "Not found");
 
   await application.deleteOne();
 
-  res.status(200).json(
-    new ApiResponse(200, {}, "Deleted")
-  );
+  res.status(200).json(new ApiResponse(200, {}, "Deleted"));
 });
 
 export {
@@ -274,5 +253,5 @@ export {
   withdrawApplication,
   deleteApplication,
   scheduleInterview,
-  addNote
+  addNote,
 };
