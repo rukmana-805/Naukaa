@@ -3,6 +3,7 @@ import Organization from "../models/Organization.model.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
+import UserModel from "../models/User.model.js";
 
 const createJob = asyncHandler(async (req, res) => {
   const {
@@ -262,7 +263,7 @@ const getFilteredJobs = asyncHandler(async (req, res) => {
 // Recommendation Algorithm (Bonus - can be improved a lot with ML)
 const getRecommendedJobs = asyncHandler(async (req, res) => {
 
-  const user = await User.findById(req.user._id);
+  const user = await UserModel.findById(req.user._id);
 
   if (!user) throw new ApiError(404, "User not found");
 

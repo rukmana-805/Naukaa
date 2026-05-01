@@ -2,6 +2,8 @@ import amqp from "amqplib";
 
 let channel;
 
+// console.log(process.env.RABBITMQ_URL);
+
 export const connectRabbitMQ = async () => {
   try {
     const connection = await amqp.connect(process.env.RABBITMQ_URL);

@@ -4,10 +4,11 @@ import Subscription from "../models/Subscrption.model.js";
 import UserModel from "../models/User.model.js";
 import ApiError from "../utils/ApiError.js";
 import { verifyRazorpaySignature } from "../utils/verifySignature.js";
-import razorpay from "../config/razorpay.js"
+import razorpay from "../config/razorpay.js";
 import { cleanupStaleCreatedPayments } from "../utils/paymentCleanup.js";
 import crypto from "crypto";
-
+import { sendEmailToQueue } from "../queues/email.producer.js";
+import { sendNotificationToQueue } from "../queues/notification.producer.js";
 
 const createOrder = asyncHandler(async (req, res) => {
   // future: planId se price nikaalna
@@ -18,9 +19,9 @@ const createOrder = asyncHandler(async (req, res) => {
 
   // 1) Razorpay order create
   const order = await razorpay.orders.create({
-    amount: amount * 100,   // paise
+    amount: amount * 100, // paise
     currency: "INR",
-    receipt: `rcpt_${Date.now()}` // helpful for tracing
+    receipt: `rcpt_${Date.now()}`, // helpful for tracing
   });
 
   if (!order?.id) {
@@ -34,7 +35,7 @@ const createOrder = asyncHandler(async (req, res) => {
     user: req.user._id,
     amount,
     status: "created",
-    razorpay_order_id: order.id
+    razorpay_order_id: order.id,
   });
 
   // 3) frontend ko minimal data
@@ -42,9 +43,9 @@ const createOrder = asyncHandler(async (req, res) => {
     order: {
       id: order.id,
       amount: order.amount,
-      currency: order.currency
+      currency: order.currency,
     },
-    paymentId: payment._id
+    paymentId: payment._id,
   });
 });
 
@@ -53,7 +54,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
     razorpay_order_id,
     razorpay_payment_id,
     razorpay_signature,
-    paymentId
+    paymentId,
   } = req.body;
 
   // 0) cleanup stale created payments (same user)
@@ -63,7 +64,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   const isValid = verifyRazorpaySignature({
     orderId: razorpay_order_id,
     paymentId: razorpay_payment_id,
-    signature: razorpay_signature
+    signature: razorpay_signature,
   });
 
   if (!isValid) {
@@ -81,7 +82,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   if (payment.status === "success") {
     return res.status(200).json({
       success: true,
-      message: "Already processed"
+      message: "Already processed",
     });
   }
 
@@ -92,7 +93,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
 
   // 5) ensure this payment_id not used elsewhere (unique index bhi hai)
   const existing = await Payment.findOne({
-    razorpay_payment_id
+    razorpay_payment_id,
   });
 
   if (existing && existing._id.toString() !== payment._id.toString()) {
@@ -108,7 +109,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   // 7) ensure single active subscription (atomic-ish flow)
   await Subscription.updateMany(
     { user: req.user._id, status: "active" },
-    { status: "expired" }
+    { status: "expired" },
   );
 
   const start = new Date();
@@ -120,23 +121,22 @@ const verifyPayment = asyncHandler(async (req, res) => {
     startDate: start,
     endDate: end,
     status: "active",
-    payment: payment._id
+    payment: payment._id,
   });
 
   // 8) update user
   await UserModel.findByIdAndUpdate(req.user._id, {
     plan: "paid",
-    subscription: subscription._id
+    subscription: subscription._id,
   });
 
   return res.status(200).json({
     success: true,
-    message: "Payment verified & subscription activated"
+    message: "Payment verified & subscription activated",
   });
 });
 
 const razorpayWebhook = async (req, res) => {
-
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
   const signature = req.headers["x-razorpay-signature"];
@@ -151,17 +151,19 @@ const razorpayWebhook = async (req, res) => {
   }
 
   const event = JSON.parse(req.body);
-  
+
   // PAYMENT SUCCESS
   if (event.event === "payment.captured") {
-
     const data = event.payload.payment.entity;
 
     const payment = await Payment.findOne({
-      razorpay_order_id: data.order_id
+      razorpay_order_id: data.order_id,
     });
 
     if (!payment) return res.json({ ok: true });
+
+    // const user = await UserModel.findById(payment.user);
+    const userId = payment.user;
 
     // idempotency
     if (payment.status === "success") {
@@ -175,7 +177,7 @@ const razorpayWebhook = async (req, res) => {
     // expire old subscriptions
     await Subscription.updateMany(
       { user: payment.user, status: "active" },
-      { status: "expired" }
+      { status: "expired" },
     );
 
     // create new subscription
@@ -185,27 +187,61 @@ const razorpayWebhook = async (req, res) => {
       startDate: new Date(),
       endDate: new Date(Date.now() + 30 * 86400000),
       status: "active",
-      payment: payment._id
+      payment: payment._id,
     });
 
     await UserModel.findByIdAndUpdate(payment.user, {
       plan: "paid",
-      subscription: subscription._id
+      subscription: subscription._id,
     });
 
+    try {
+      // send notification & email (async) to queue - RabbitMQ
+      await sendNotificationToQueue({
+        userId,
+        title: "Plan Activated",
+        message: "Your plan has been upgraded successfully",
+        type: "PAYMENT",
+        data: {
+          subscriptionId: subscription._id,
+          paymentId: payment._id,
+        }
+      });
+
+      await sendEmailToQueue({
+        email: user.email,
+        type: "PAYMENT_SUCCESS",
+      });
+    } catch (error) {
+      console.error("Failed to enqueue notification/email:", error);
+    }
   }
 
-  
   // PAYMENT FAILED
   if (event.event === "payment.failed") {
-
     const data = event.payload.payment.entity;
 
-    await Payment.findOneAndUpdate(
+    const payment = await Payment.findOneAndUpdate(
       { razorpay_order_id: data.order_id },
-      { status: "failed" }
+      { status: "failed" },
+      { new: true } // return updated doc
     );
 
+    // send notification & email (async) to queue - RabbitMQ
+    await sendNotificationToQueue({
+      userId,
+      title: "Plan Still Not Activated",
+      message: "There is an issue with your payment. Please retry or contact support",
+      type: "PAYMENT",
+      data: {
+        paymentId: payment._id
+      }
+    });
+
+    await sendEmailToQueue({
+      email: user.email,
+      type: "PAYMENT_FAILED",
+    });
   }
 
   res.status(200).json({ received: true });
@@ -217,7 +253,7 @@ const markPaymentFailed = asyncHandler(async (req, res) => {
   const payment = await Payment.findOneAndUpdate(
     { razorpay_order_id },
     { status: "failed" },
-    { new: true }
+    { new: true },
   );
 
   if (!payment) {
@@ -231,7 +267,6 @@ const markPaymentFailed = asyncHandler(async (req, res) => {
 });
 
 const retryPayment = asyncHandler(async (req, res) => {
-
   const { paymentId } = req.body;
 
   const payment = await Payment.findById(paymentId);
@@ -242,7 +277,7 @@ const retryPayment = asyncHandler(async (req, res) => {
 
   const order = await razorpay.orders.create({
     amount: payment.amount * 100,
-    currency: "INR"
+    currency: "INR",
   });
 
   payment.razorpay_order_id = order.id;
@@ -250,25 +285,21 @@ const retryPayment = asyncHandler(async (req, res) => {
   await payment.save();
 
   res.json({ order });
-
 });
 
 const getMySubscription = asyncHandler(async (req, res) => {
-
   const subscription = await Subscription.findOne({
     user: req.user._id,
-    status: "active"
+    status: "active",
   }).populate("payment");
 
   res.status(200).json(subscription);
-
 });
 
 const cancelSubscription = asyncHandler(async (req, res) => {
-
   const subscription = await Subscription.findOne({
     user: req.user._id,
-    status: "active"
+    status: "active",
   });
 
   if (!subscription) {
@@ -280,19 +311,18 @@ const cancelSubscription = asyncHandler(async (req, res) => {
 
   await UserModel.findByIdAndUpdate(req.user._id, {
     plan: "free",
-    subscription: null // IMPORTANT
+    subscription: null, // IMPORTANT
   });
 
   res.json({ message: "Subscription cancelled" });
-
 });
 
-export { 
-  createOrder, 
-  verifyPayment, 
-  getMySubscription, 
-  cancelSubscription, 
-  razorpayWebhook, 
-  retryPayment, 
-  markPaymentFailed
+export {
+  createOrder,
+  verifyPayment,
+  getMySubscription,
+  cancelSubscription,
+  razorpayWebhook,
+  retryPayment,
+  markPaymentFailed,
 };

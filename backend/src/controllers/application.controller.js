@@ -5,6 +5,7 @@ import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { sendEmailToQueue } from "../queues/email.producer.js";
+import { sendNotificationToQueue } from "../queues/notification.producer.js";
 
 const applyToJob = asyncHandler(async (req, res) => {
   const { jobId } = req.params;
@@ -73,9 +74,9 @@ const applyToJob = asyncHandler(async (req, res) => {
   });
 
   // Push email to queue - RabbitMQ
-  await sendEmailToQueue({
-    email: req.user.email,
-  });
+  // await sendEmailToQueue({
+  //   email: req.user.email,
+  // });
 
   // increment applications count in job
   await Job.findByIdAndUpdate(jobId, {
@@ -134,11 +135,11 @@ const getApplicationById = asyncHandler(async (req, res) => {
 });
 
 const updateApplicationStatus = asyncHandler(async (req, res) => {
-  const { status } = req.body;
+  const { status, interviewDetails } = req.body;
 
   const allowedStatus = [
     "applied",
-    "reviewing",
+    // "reviewing",
     "shortlisted",
     "interview",
     "rejected",
@@ -157,15 +158,90 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
     throw new ApiError(403, "Not authorized");
   }
 
+  const oldStatus = application.status;
+
+  if (oldStatus === status) {
+    return res.json({ message: "No change" });
+  }
+
   // update status
   application.status = status;
 
   // push history
   application.statusHistory.push({ status });
 
+  // interview case
+  if (status === "interview") {
+    application.interview = interviewDetails;
+  }
+
   await application.save();
 
+  // Notification (except applied)
+  await sendNotificationToQueue({
+    userId: application.applicant,
+    title: `Application ${status}`,
+    message: `Your application is now ${status}`,
+    type: "JOB_UPDATE",
+    data: {
+      jobId: application.job,
+      applicationId: application._id,
+      status: `${status}`,
+    },
+  });
+
+  // Email only for important
+  if (["shortlisted", "interview", "rejected", "hired"].includes(status)) {
+    await sendEmailToQueue({
+      email: application.applicantSnapshot.email,
+      status,
+      interviewDetails,
+    });
+  }
+
   res.status(200).json(new ApiResponse(200, application, "Status updated"));
+});
+
+// This is for auto move to reviewing status when recruiter open the application
+const applicationReviewUpdate = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const application = await Application.findById(id);
+
+  if (!application) {
+    throw new ApiError(404, "Application not found");
+  }
+
+  if (application.job.postedBy.toString() !== req.user._id.toString()) {
+    throw new ApiError(403, "Not authorized");
+  }
+
+  if (application.status === "applied") {
+    application.status = "reviewing";
+
+    application.statusHistory.push({ status: "reviewing" });
+
+    await application.save();
+
+    // Notification only
+    await sendNotificationToQueue({
+      userId: application.applicant,
+      title: "Application Under Review",
+      message: "Your application is being reviewed",
+      type: "JOB_UPDATE",
+      data: {
+        jobId: application.job,
+        applicationId: application._id,
+        status: "reviewing",
+      },
+    });
+  } else {
+    throw new ApiError(400, "Cannot move to reviewing");
+  }
+
+  res
+    .status(200)
+    .json(new ApiResponse(200, application, "Status updated to reviewed"));
 });
 
 const addNote = asyncHandler(async (req, res) => {
@@ -254,4 +330,5 @@ export {
   deleteApplication,
   scheduleInterview,
   addNote,
+  applicationReviewUpdate,
 };
