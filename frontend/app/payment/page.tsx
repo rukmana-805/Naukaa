@@ -8,19 +8,22 @@ declare global {
   }
 }
 
+// console.log(`Bearer ${process.env.REFRESH_TOKEN}`);
+
 export default function PaymentPage() {
   const [loading, setLoading] = useState(false);
 
   const handlePayment = async () => {
+    console.log(process.env.REFRESH_TOKEN);
     try {
       setLoading(true);
 
       // STEP 1: Create Order
-      const res = await fetch("http://localhost:4000/api/payment/create-order", {
+      const res = await fetch("https://headlamp-rosy-disparate.ngrok-free.dev/api/payment/create-order", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZWRiNThkMjg0NDBhOWY0ZjVmNWJkZCIsImlhdCI6MTc3NzUzOTg2NSwiZXhwIjoxNzc3NTQzNDA1fQ.fnI2l-l0ZsaIDkDdijyoZllQniB98D520JFfK7m0iVY", // ⚠️ replace
+          Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjVkZGM4NDEyOGFkMzc0NmI4N2ViZCIsImlhdCI6MTc3NzcyMTc4NiwiZXhwIjoxNzc3NzI1MzI2fQ.1P6ZGO7m6fr7l-xkbN62HelA7bNU-kXy8ILqwXA8eGM`, // ⚠️ replace
         },
       });
 
@@ -52,36 +55,8 @@ export default function PaymentPage() {
         description: "Upgrade Plan",
 
         handler: async (response: any) => {
-          try {
-            // STEP 3: Verify Payment
-            const verifyRes = await fetch(
-              "http://localhost:4000/api/payment/verify",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                  Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZWRiNThkMjg0NDBhOWY0ZjVmNWJkZCIsImlhdCI6MTc3NzUzOTg2NSwiZXhwIjoxNzc3NTQzNDA1fQ.fnI2l-l0ZsaIDkDdijyoZllQniB98D520JFfK7m0iVY", // ⚠️ replace
-                },
-                body: JSON.stringify({
-                  razorpay_payment_id: response.razorpay_payment_id,
-                  razorpay_order_id: response.razorpay_order_id,
-                  razorpay_signature: response.razorpay_signature,
-                  paymentId,
-                }),
-              }
-            );
-
-            if (!verifyRes.ok) {
-              const errorText = await verifyRes.text();
-              console.error("Verify Error:", errorText);
-              alert("Payment verification failed");
-              return;
-            }
-
-            alert("Payment successful 🎉");
-          } catch (err) {
-            console.error("Verify Error:", err);
-          }
+          alert("Payment successfully 🎉");
+          console.log("Payment Success:", response);
         },
 
         theme: {
@@ -98,11 +73,11 @@ export default function PaymentPage() {
         alert("Payment failed");
 
         try {
-          await fetch("http://localhost:4000/api/payment/fail", {
+          await fetch("https://headlamp-rosy-disparate.ngrok-free.dev/api/payment/fail", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZWRiNThkMjg0NDBhOWY0ZjVmNWJkZCIsImlhdCI6MTc3NzUzOTg2NSwiZXhwIjoxNzc3NTQzNDA1fQ.fnI2l-l0ZsaIDkDdijyoZllQniB98D520JFfK7m0iVY", // ⚠️ replace
+              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjVkZGM4NDEyOGFkMzc0NmI4N2ViZCIsImlhdCI6MTc3NzcyMTc4NiwiZXhwIjoxNzc3NzI1MzI2fQ.1P6ZGO7m6fr7l-xkbN62HelA7bNU-kXy8ILqwXA8eGM`, // ⚠️ replace
             },
             body: JSON.stringify({
               razorpay_order_id: response.error.metadata.order_id,

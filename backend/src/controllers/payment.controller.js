@@ -136,6 +136,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
   });
 });
 
+
 const razorpayWebhook = async (req, res) => {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -152,6 +153,7 @@ const razorpayWebhook = async (req, res) => {
 
   const event = JSON.parse(req.body);
 
+  
   // PAYMENT SUCCESS
   if (event.event === "payment.captured") {
     const data = event.payload.payment.entity;
@@ -162,25 +164,30 @@ const razorpayWebhook = async (req, res) => {
 
     if (!payment) return res.json({ ok: true });
 
-    // const user = await UserModel.findById(payment.user);
     const userId = payment.user;
 
-    // idempotency
+    // Idempotency (already processed)
     if (payment.status === "success") {
       return res.json({ ok: true });
     }
 
+    // Duplicate payment check
+    if (payment.razorpay_payment_id === data.id) {
+      return res.json({ ok: true });
+    }
+
+    // Update payment
     payment.status = "success";
     payment.razorpay_payment_id = data.id;
     await payment.save();
 
-    // expire old subscriptions
+    // Expire old subscriptions
     await Subscription.updateMany(
       { user: payment.user, status: "active" },
-      { status: "expired" },
+      { status: "expired" }
     );
 
-    // create new subscription
+    // Create new subscription
     const subscription = await Subscription.create({
       user: payment.user,
       plan: "paid",
@@ -196,7 +203,9 @@ const razorpayWebhook = async (req, res) => {
     });
 
     try {
-      // send notification & email (async) to queue - RabbitMQ
+      console.log("Enqueuing notification and email for payment success...");
+
+      // Notification
       await sendNotificationToQueue({
         userId,
         title: "Plan Activated",
@@ -205,18 +214,33 @@ const razorpayWebhook = async (req, res) => {
         data: {
           subscriptionId: subscription._id,
           paymentId: payment._id,
-        }
+        },
       });
 
-      await sendEmailToQueue({
-        email: user.email,
-        type: "PAYMENT_SUCCESS",
-      });
+      console.log("Notification enqueued");
+
+      // Email
+      const user = await UserModel.findById(payment.user);
+
+      if (user?.email) {
+        console.log("Enqueuing email to queue");
+
+        await sendEmailToQueue({
+          email: user.email,
+          type: "PAYMENT_SUCCESS",
+        });
+
+        console.log("Email enqueued");
+      } else {
+        console.error("User email not found");
+      }
+
     } catch (error) {
       console.error("Failed to enqueue notification/email:", error);
     }
   }
 
+  
   // PAYMENT FAILED
   if (event.event === "payment.failed") {
     const data = event.payload.payment.entity;
@@ -224,27 +248,40 @@ const razorpayWebhook = async (req, res) => {
     const payment = await Payment.findOneAndUpdate(
       { razorpay_order_id: data.order_id },
       { status: "failed" },
-      { new: true } // return updated doc
+      { new: true }
     );
 
-    // send notification & email (async) to queue - RabbitMQ
-    await sendNotificationToQueue({
-      userId,
-      title: "Plan Still Not Activated",
-      message: "There is an issue with your payment. Please retry or contact support",
-      type: "PAYMENT",
-      data: {
-        paymentId: payment._id
-      }
-    });
+    if (!payment) return res.json({ ok: true });
 
-    await sendEmailToQueue({
-      email: user.email,
-      type: "PAYMENT_FAILED",
-    });
+    const user = await UserModel.findById(payment.user);
+
+    try {
+      // Notification
+      await sendNotificationToQueue({
+        userId: payment.user,
+        title: "Plan Still Not Activated",
+        message:
+          "There is an issue with your payment. Please retry or contact support",
+        type: "PAYMENT",
+        data: {
+          paymentId: payment._id,
+        },
+      });
+
+      // Email
+      if (user?.email) {
+        await sendEmailToQueue({
+          email: user.email,
+          type: "PAYMENT_FAILED",
+        });
+      }
+
+    } catch (error) {
+      console.error("Failed to enqueue failure notification/email:", error);
+    }
   }
 
-  res.status(200).json({ received: true });
+  return res.status(200).json({ received: true });
 };
 
 const markPaymentFailed = asyncHandler(async (req, res) => {
