@@ -203,7 +203,7 @@ const razorpayWebhook = async (req, res) => {
     });
 
     try {
-      console.log("Enqueuing notification and email for payment success...");
+      // console.log("Enqueuing notification and email for payment success...");
 
       // Notification
       await sendNotificationToQueue({
@@ -217,7 +217,9 @@ const razorpayWebhook = async (req, res) => {
         },
       });
 
-      console.log("Notification enqueued");
+      
+
+      // console.log("Notification enqueued");
 
       // Email
       const user = await UserModel.findById(payment.user);

@@ -47,7 +47,7 @@ const unreadNoticationsCount = async (req, res) => {
   
 };
 
-export default {
+export {
   getMyNotifications,
   markAsRead,
   markAllAsRead,

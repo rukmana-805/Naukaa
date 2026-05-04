@@ -11,6 +11,7 @@ import organizationRoutes from "./routes/organization.routes.js";
 import jobRoutes from "./routes/job.routes.js";
 import applicationRoutes from "./routes/application.routes.js";
 import paymentRoutes from "./routes/payment.routes.js";
+import notificationRoutes from "./routes/notification.routes.js";
 import { razorpayWebhook } from "./controllers/payment.controller.js";
 
 const app = express();
@@ -47,6 +48,7 @@ app.use("/api/organizations", organizationRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/payment", paymentRoutes);
+app.use("/api/notifications", notificationRoutes);
 
 // Test route
 app.get("/", (req, res) => {

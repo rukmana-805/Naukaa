@@ -51,6 +51,17 @@ const organizationSchema = new mongoose.Schema(
       default: [],
     },
 
+    // isVerified: {
+    //   type: Boolean,
+    //   default: false,
+    // },
+
+    // status: {
+    //   type: String,
+    //   enum: ["pending", "verified", "rejected"],
+    //   default: "pending",
+    // },
+
     perks: {
       type: [String],
       default: [],

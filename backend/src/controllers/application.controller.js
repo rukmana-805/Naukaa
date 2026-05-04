@@ -154,7 +154,11 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
 
   if (!application) throw new ApiError(404, "Application not found");
 
-  if (application.job.postedBy.toString() !== req.user._id.toString()) {
+  console.log(application.job.postedBy)
+
+  const job = await Job.findById(application.job);
+
+  if (job.postedBy.toString() !== req.user._id.toString()) {
     throw new ApiError(403, "Not authorized");
   }
 

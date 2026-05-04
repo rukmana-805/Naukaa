@@ -1,6 +1,8 @@
 "use client";
 
+import { useNotifications } from "@/hooks/useNotifications";
 import React, { useState } from "react";
+import { useEffect } from "react";
 
 declare global {
   interface Window {
@@ -13,19 +15,44 @@ declare global {
 export default function PaymentPage() {
   const [loading, setLoading] = useState(false);
 
+  const userId = "69f4e6deda7a137991686037"; // replace
+  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjRlNmRlZGE3YTEzNzk5MTY4NjAzNyIsImlhdCI6MTc3NzkwMTE1NSwiZXhwIjoxNzc3OTA0Njk1fQ.PGn5k4KRFpdcVKwj9reqMAnCrU7KJ-Ek3q2SNB4IJuo";
+
+  // userId for socket
+  const { notifications, setNotifications } = useNotifications(userId);
+
+  const fetchNotifications = async () => {
+    const res = await fetch("http://localhost:4000/api/notifications/get-notifications", {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`, // ⚠️ replace
+      }
+    });
+    const data = await res.json();
+    setNotifications(data);
+  };
+
+  useEffect(() => {
+    fetchNotifications();
+  }, []);
+
   const handlePayment = async () => {
     console.log(process.env.REFRESH_TOKEN);
     try {
       setLoading(true);
 
       // STEP 1: Create Order
-      const res = await fetch("https://headlamp-rosy-disparate.ngrok-free.dev/api/payment/create-order", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjVkZGM4NDEyOGFkMzc0NmI4N2ViZCIsImlhdCI6MTc3NzcyMTc4NiwiZXhwIjoxNzc3NzI1MzI2fQ.1P6ZGO7m6fr7l-xkbN62HelA7bNU-kXy8ILqwXA8eGM`, // ⚠️ replace
+      const res = await fetch(
+        "https://headlamp-rosy-disparate.ngrok-free.dev/api/payment/create-order",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`, // ⚠️ replace
+          },
         },
-      });
+      );
 
       // ERROR HANDLING
       if (!res.ok) {
@@ -57,6 +84,8 @@ export default function PaymentPage() {
         handler: async (response: any) => {
           alert("Payment successfully 🎉");
           console.log("Payment Success:", response);
+          // fetch latest notifications after payment
+          fetchNotifications();
         },
 
         theme: {
@@ -72,24 +101,28 @@ export default function PaymentPage() {
 
         alert("Payment failed");
 
+        fetchNotifications()
+
         try {
-          await fetch("https://headlamp-rosy-disparate.ngrok-free.dev/api/payment/fail", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjVkZGM4NDEyOGFkMzc0NmI4N2ViZCIsImlhdCI6MTc3NzcyMTc4NiwiZXhwIjoxNzc3NzI1MzI2fQ.1P6ZGO7m6fr7l-xkbN62HelA7bNU-kXy8ILqwXA8eGM`, // ⚠️ replace
+          await fetch(
+            "https://headlamp-rosy-disparate.ngrok-free.dev/api/payment/fail",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`, // ⚠️ replace
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.error.metadata.order_id,
+              }),
             },
-            body: JSON.stringify({
-              razorpay_order_id: response.error.metadata.order_id,
-            }),
-          });
+          );
         } catch (err) {
           console.error("Fail API Error:", err);
         }
       });
 
       rzp.open();
-
     } catch (err) {
       console.error("Main Error:", err);
       alert("Something went wrong");
@@ -100,7 +133,7 @@ export default function PaymentPage() {
 
   return (
     <div style={{ padding: 40 }}>
-      <h2>Upgrade Plan 🚀</h2>
+      <h2 className="my-2 text-xl">Upgrade Plan 🚀</h2>
 
       <button
         className="px-5 py-3 bg-green-500 text-white rounded-md"
@@ -109,6 +142,16 @@ export default function PaymentPage() {
       >
         {loading ? "Processing..." : "Buy Plan"}
       </button>
+
+      <div className="my-2">🔔 Notifications {notifications.length}</div>
+      <ul>
+        {notifications.map((n) => (
+          <li key={n._id}>
+            <strong>{n.title}</strong>
+            <p>{n.message}</p>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
