@@ -9,6 +9,7 @@ import { cleanupStaleCreatedPayments } from "../utils/paymentCleanup.js";
 import crypto from "crypto";
 import { sendEmailToQueue } from "../queues/email.producer.js";
 import { sendNotificationToQueue } from "../queues/notification.producer.js";
+import { EMAIL_TYPES } from "../constants/email.constants.js";
 
 const createOrder = asyncHandler(async (req, res) => {
   // future: planId se price nikaalna
@@ -136,7 +137,6 @@ const verifyPayment = asyncHandler(async (req, res) => {
   });
 });
 
-
 const razorpayWebhook = async (req, res) => {
   const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
 
@@ -153,7 +153,6 @@ const razorpayWebhook = async (req, res) => {
 
   const event = JSON.parse(req.body);
 
-  
   // PAYMENT SUCCESS
   if (event.event === "payment.captured") {
     const data = event.payload.payment.entity;
@@ -184,7 +183,7 @@ const razorpayWebhook = async (req, res) => {
     // Expire old subscriptions
     await Subscription.updateMany(
       { user: payment.user, status: "active" },
-      { status: "expired" }
+      { status: "expired" },
     );
 
     // Create new subscription
@@ -217,8 +216,6 @@ const razorpayWebhook = async (req, res) => {
         },
       });
 
-      
-
       // console.log("Notification enqueued");
 
       // Email
@@ -228,21 +225,24 @@ const razorpayWebhook = async (req, res) => {
         console.log("Enqueuing email to queue");
 
         await sendEmailToQueue({
-          email: user.email,
-          type: "PAYMENT_SUCCESS",
+          to: user.email, 
+          type: EMAIL_TYPES.PAYMENT_SUCCESS,
+          payload: {
+            name: user.fullName,
+            plan: "Pro Plan",
+            amount: payment.amount,
+          },
         });
 
-        console.log("Email enqueued");
+        // console.log("Email enqueued");
       } else {
         console.error("User email not found");
       }
-
     } catch (error) {
       console.error("Failed to enqueue notification/email:", error);
     }
   }
 
-  
   // PAYMENT FAILED
   if (event.event === "payment.failed") {
     const data = event.payload.payment.entity;
@@ -250,7 +250,7 @@ const razorpayWebhook = async (req, res) => {
     const payment = await Payment.findOneAndUpdate(
       { razorpay_order_id: data.order_id },
       { status: "failed" },
-      { new: true }
+      { new: true },
     );
 
     if (!payment) return res.json({ ok: true });
@@ -277,7 +277,6 @@ const razorpayWebhook = async (req, res) => {
           type: "PAYMENT_FAILED",
         });
       }
-
     } catch (error) {
       console.error("Failed to enqueue failure notification/email:", error);
     }

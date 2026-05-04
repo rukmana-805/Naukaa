@@ -6,6 +6,7 @@ import ApiResponse from "../utils/ApiResponse.js";
 import asyncHandler from "../utils/asyncHandler.js";
 import { sendEmailToQueue } from "../queues/email.producer.js";
 import { sendNotificationToQueue } from "../queues/notification.producer.js";
+import { EMAIL_TYPES } from "../constants/email.constants.js";
 
 const applyToJob = asyncHandler(async (req, res) => {
   const { jobId } = req.params;
@@ -154,7 +155,7 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
 
   if (!application) throw new ApiError(404, "Application not found");
 
-  console.log(application.job.postedBy)
+  console.log(application.job.postedBy);
 
   const job = await Job.findById(application.job);
 
@@ -197,9 +198,15 @@ const updateApplicationStatus = asyncHandler(async (req, res) => {
   // Email only for important
   if (["shortlisted", "interview", "rejected", "hired"].includes(status)) {
     await sendEmailToQueue({
-      email: application.applicantSnapshot.email,
-      status,
-      interviewDetails,
+      to: application.applicantSnapshot.email,
+      type: EMAIL_TYPES.APPLICATION_STATUS, // event driver
+      payload: {
+        name: application.applicantSnapshot.fullName,
+        status,
+        jobTitle: application.jobSnapshot.title,
+        company: application.jobSnapshot.companyName,
+        interviewDetails,
+      },
     });
   }
 

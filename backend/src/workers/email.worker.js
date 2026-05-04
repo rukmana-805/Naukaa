@@ -22,7 +22,7 @@ const startWorker = async () => {
     const data = JSON.parse(msg.content.toString());
 
     try {
-      await sendEmail(data.email);
+      await sendEmail(data);
 
       channel.ack(msg);
     } catch (error) {

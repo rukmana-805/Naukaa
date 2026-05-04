@@ -15,8 +15,8 @@ declare global {
 export default function PaymentPage() {
   const [loading, setLoading] = useState(false);
 
-  const userId = "69f4e6deda7a137991686037"; // replace
-  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZjRlNmRlZGE3YTEzNzk5MTY4NjAzNyIsImlhdCI6MTc3NzkwMTE1NSwiZXhwIjoxNzc3OTA0Njk1fQ.PGn5k4KRFpdcVKwj9reqMAnCrU7KJ-Ek3q2SNB4IJuo";
+  const userId = "69edb58d28440a9f4f5f5bdd"; // replace
+  const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjY5ZWRiNThkMjg0NDBhOWY0ZjVmNWJkZCIsImlhdCI6MTc3NzkxNDAzNSwiZXhwIjoxNzc3OTE3NTc1fQ.TqcQ2MwaUoVpHwbcn57r5i1nJhu9VlCZeAn85sVg2c0";
 
   // userId for socket
   const { notifications, setNotifications } = useNotifications(userId);
