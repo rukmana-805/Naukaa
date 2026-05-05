@@ -1,5 +1,5 @@
 "use client";
-export default function RecruiterNavbar() {
+export default function RecruiterLogoHeader() {
   return (
     <nav className="bg-[#2d2d2d] border-b border-gray-700">
       <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">

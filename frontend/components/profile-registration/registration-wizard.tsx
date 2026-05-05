@@ -14,7 +14,6 @@ import ResumeUploadStep from "./steps/resume-upload";
 import ProfileStepper from "./profile-stepper";
 
 export default function RegistrationWizard() {
-
   const [currentStep, setCurrentStep] = useState(0);
 
   const [formData, setFormData] = useState({

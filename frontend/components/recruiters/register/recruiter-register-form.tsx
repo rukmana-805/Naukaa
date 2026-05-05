@@ -1,9 +1,10 @@
 "use client";
-
 import { useState } from "react";
 import CountryCodeDropdown from "./country-code-dropdown";
-
-export default function RecruiterRegisterForm() {
+type Props = {
+  onSuccess: (mobile: string) => void;
+};
+export default function RecruiterRegisterForm({ onSuccess }: Props) {
 
   const [countryCode,setCountryCode] = useState("+91");
   const [mobileNumber,setMobileNumber] = useState("");
@@ -16,7 +17,7 @@ export default function RecruiterRegisterForm() {
       alert("Enter mobile number");
       return;
     }
-
+    onSuccess(mobileNumber);
     console.log({countryCode,mobileNumber});
   }
 

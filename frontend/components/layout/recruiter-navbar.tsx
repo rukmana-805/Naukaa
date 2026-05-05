@@ -9,7 +9,7 @@ export default function RecruiterNavbar() {
 
         <div className="flex gap-4">
           <button className="bg-[#2164e8] px-6 py-2 text-white rounded-md">
-            Sign in
+            Sign Up
           </button>
           <button className="text-white px-4 py-2">
             Find jobs

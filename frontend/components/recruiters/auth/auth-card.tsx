@@ -25,7 +25,7 @@ export default function AuthCard() {
             tab === "login" ? "bg-white shadow" : ""
           }`}
         >
-          Register / Log in
+          Log in
         </button>
       </div>
 
